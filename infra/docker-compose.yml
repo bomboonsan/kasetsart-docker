@@ -4,7 +4,7 @@ services:
   mysql:
     image: mariadb:10
     restart: unless-stopped
-    env_file: ./.env # <--- เพิ่มบรรทัดนี้
+    env_file: ./.env
     command: ["mysqld","--default-authentication-plugin=mysql_native_password","--character-set-server=utf8mb4","--collation-server=utf8mb4_unicode_ci"]
     volumes:
       - mysql_data:/var/lib/mysql
@@ -12,13 +12,11 @@ services:
 
   strapi:
     build:
-      context: ../strapi # <--- แก้ context ให้ถูก
+      context: ../strapi
       dockerfile: Dockerfile
-      args: # <--- เพิ่มส่วนนี้
-        - PUBLIC_URL=${PUBLIC_BASE_URL}/strapi
     restart: unless-stopped
     depends_on: [mysql]
-    env_file: ./.env # <--- เพิ่มบรรทัดนี้
+    env_file: ./.env
     environment:
       NODE_ENV: production
       DATABASE_CLIENT: mysql
@@ -27,17 +25,16 @@ services:
       DATABASE_NAME: ${MYSQL_DATABASE}
       DATABASE_USERNAME: ${MYSQL_USER}
       DATABASE_PASSWORD: ${MYSQL_PASSWORD}
-      URL: ${PUBLIC_BASE_URL}/strapi
     networks: [appnet]
     volumes:
       - strapi_uploads:/app/public/uploads
 
   next:
     build:
-      context: ../nextjs # <--- แก้ context ให้ถูก
+      context: ../nextjs
       dockerfile: Dockerfile
     restart: unless-stopped
-    env_file: ./.env # <--- เพิ่มบรรทัดนี้
+    env_file: ./.env
     environment:
       NODE_ENV: production
       API_URL: ${STRAPI_INTERNAL_URL}
@@ -48,7 +45,7 @@ services:
   phpmyadmin:
     image: phpmyadmin:5-apache
     restart: unless-stopped
-    env_file: ./.env # <--- เพิ่มบรรทัดนี้
+    env_file: ./.env
     environment:
       PMA_HOST: mysql
       UPLOAD_LIMIT: 256M

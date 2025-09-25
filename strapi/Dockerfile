@@ -11,11 +11,6 @@ ARG BRANCH=main
 RUN --mount=type=ssh,id=default git clone --depth 1 -b "$BRANCH" "$REPO" app
 WORKDIR /src/app
 
-# ARG PUBLIC_URL
-# ENV STRAPI_ADMIN_BACKEND_URL=$PUBLIC_URL
-ARG PUBLIC_URL
-ENV URL=$PUBLIC_URL
-
 ENV NODE_ENV=production
 ENV PORT=1338
 ENV HOST=0.0.0.0
