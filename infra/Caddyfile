@@ -1,16 +1,15 @@
 fahsai.bus.ku.ac.th {
   encode zstd gzip
 
-  @strapi path /strapi* 
-  handle @strapi {
+  @strapi path /strapi* handle @strapi {
     header {
       X-Forwarded-Proto {scheme}
       X-Forwarded-Host  {host}
       X-Forwarded-Prefix /strapi
     }
-    handle_path /strapi* {
-      reverse_proxy http://strapi:1338
-    }
+    # --- ส่วนที่แก้ไข ---
+    # ลบ handle_path ออก แล้วใช้ reverse_proxy โดยตรง
+    reverse_proxy http://strapi:1338
   }
 
   handle_path /phpmyadmin* {
