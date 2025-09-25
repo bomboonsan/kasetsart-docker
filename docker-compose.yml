@@ -69,6 +69,11 @@ services:
       context: ./nextjs
       dockerfile: Dockerfile
       args:
+        # Git
+        REPO_URL: https://github.com/bomboonsan/kasetsart-nextjs.git
+        GIT_REF: main          # หรือชื่อ branch/tag หรือ commit SHA
+        CACHE_BUSTER: ${CACHE_BUSTER}  # ใช้เปลี่ยนค่าเพื่อบังคับ re-clone
+        # Build-time public envs
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_STRAPI_GRAPHQL_API_URL: ${NEXT_PUBLIC_STRAPI_GRAPHQL_API_URL}
@@ -92,6 +97,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+
 
   caddy:
     image: caddy:alpine
