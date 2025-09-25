@@ -14,6 +14,8 @@ services:
     build:
       context: ../strapi # <--- แก้ context ให้ถูก
       dockerfile: Dockerfile
+      args: # <--- เพิ่มส่วนนี้
+        - PUBLIC_URL=${PUBLIC_BASE_URL}/strapi
     restart: unless-stopped
     depends_on: [mysql]
     env_file: ./.env # <--- เพิ่มบรรทัดนี้

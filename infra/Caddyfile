@@ -1,29 +1,24 @@
 fahsai.bus.ku.ac.th {
   encode zstd gzip
 
-  # --- Redirects ---
-  # ถ้า path คือ /strapi ให้ redirect ไปที่ /strapi/
-  @strapi_redir path /strapi
-  redir @strapi_redir /strapi/ 308
-
-  # ถ้า path คือ /phpmyadmin ให้ redirect ไปที่ /phpmyadmin/
-  @pma_redir path /phpmyadmin
-  redir @pma_redir /phpmyadmin/ 308
-
-
-  # --- Routing ---
-  handle_path /strapi/* {
-    reverse_proxy http://strapi:1338
+  @strapi path /strapi* 
+  handle @strapi {
+    header {
+      X-Forwarded-Proto {scheme}
+      X-Forwarded-Host  {host}
+      X-Forwarded-Prefix /strapi
+    }
+    handle_path /strapi* {
+      reverse_proxy http://strapi:1338
+    }
   }
 
-  handle_path /phpmyadmin/* {
+  handle_path /phpmyadmin* {
     reverse_proxy http://phpmyadmin:80
   }
 
+  # ที่เหลือให้ไป Next.js
   handle {
-    reverse_proxy http://next:3000 {
-      header_up Host {host}
-      header_up X-Forwarded-Proto {scheme}
-      header_up X-Forwarded-For {remote}
-    }
+    reverse_proxy http://next:3000
   }
+}
