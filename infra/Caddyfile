@@ -1,15 +1,32 @@
 fahsai.bus.ku.ac.th {
   encode zstd gzip
-
-  handle_path /strapi* {
-    reverse_proxy http://strapi:1338
-  }
-
+  
+  # Handle phpMyAdmin
   handle_path /phpmyadmin* {
     reverse_proxy http://phpmyadmin:80
   }
 
+  # Handle Strapi API and Admin
+  handle_path /strapi* {
+    reverse_proxy http://strapi:1337
+  }
+
+  # Handle main Next.js app
   handle {
-    reverse_proxy http://next:3000
+    reverse_proxy http://nextjs:3000
+  }
+
+  # Security headers
+  header {
+    # Enable HSTS
+    Strict-Transport-Security max-age=31536000;
+    # Prevent some categories of XSS attacks
+    X-Content-Type-Options nosniff
+    # Enable XSS filtering
+    X-XSS-Protection "1; mode=block"
+    # Deny rendering of the page in a frame
+    X-Frame-Options DENY
+    # Hide server information
+    -Server
   }
 }

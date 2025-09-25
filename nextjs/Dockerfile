@@ -1,44 +1,65 @@
-# syntax=docker/dockerfile:1.7
+# Next.js Dockerfile
+# repo : https://github.com/bomboonsan/kasetsart-nextjs.git
 
-########## Builder: clone + build ##########
-FROM node:22-alpine AS builder
-WORKDIR /src
-# ไม่จำเป็นต้องใช้ openssh แล้ว
-RUN apk update && apk upgrade && apk add --no-cache git
+FROM node:20-alpine AS base
 
-# เปลี่ยนไปใช้ HTTPS URL สำหรับ Public Repository
-ARG REPO=https://github.com/bomboonsan/kasetsart-nextjs.git
-# ใช้คำสั่ง git clone แบบปกติ
-RUN git clone --depth 1 "$REPO" app
-WORKDIR /src/app
+# Install dependencies only when needed
+FROM base AS deps
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+RUN apk add --no-cache libc6-compat git
 
-ENV NEXT_TELEMETRY_DISABLED=1
+# Install pnpm
+RUN npm install -g pnpm
 
-# ติดตั้งตาม lockfile ที่พบ
-RUN if [ -f pnpm-lock.yaml ]; then corepack enable && pnpm i --frozen-lockfile; \
-    elif [ -f yarn.lock ]; then corepack enable && yarn install --frozen-lockfile; \
-    elif [ -f package-lock.json ]; then npm ci; \
-    else npm i; fi
-
-# แนะนำให้ตั้ง output: "standalone" ใน next.config.js
-RUN npm run build
-
-########## Runner: บางเบาและพร้อมรัน ##########
-FROM node:22-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
+
+# Clone the repository
+RUN git clone https://github.com/bomboonsan/kasetsart-nextjs.git .
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Rebuild the source code only when needed
+FROM base AS builder
+RUN npm install -g pnpm
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app .
+
+# Next.js collects completely anonymous telemetry data about general usage.
+# Learn more here: https://nextjs.org/docs/telemetry
+# Uncomment the following line in case you want to disable telemetry during the build.
+ENV NEXT_TELEMETRY_DISABLED 1
+
+RUN pnpm run build
+
+# Production image, copy all the files and run next
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV production
+# Uncomment the following line in case you want to disable telemetry during runtime.
+ENV NEXT_TELEMETRY_DISABLED 1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+
+# Set the correct permission for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
+# Automatically leverage output traces to reduce image size
+# https://nextjs.org/docs/advanced-features/output-file-tracing
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
 EXPOSE 3000
 
-# โหมด standalone (ถ้ามี)
-COPY --from=builder /src/app/.next/standalone ./
-COPY --from=builder /src/app/.next/static ./.next/static
-COPY --from=builder /src/app/public ./public
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
 
-# Fallback สำหรับโปรเจกต์ที่ไม่ใช้ standalone
-COPY --from=builder /src/app/package.json ./package.json
-COPY --from=builder /src/app/node_modules ./node_modules
-COPY --from=builder /src/app/.next ./.next
-
-# ใช้ node server.js ถ้ามี (standalone) ไม่งั้น npm run start
-CMD ["sh","-lc","if [ -f ./server.js ]; then node server.js; else npm run start; fi"]
+CMD ["node", "server.js"]
