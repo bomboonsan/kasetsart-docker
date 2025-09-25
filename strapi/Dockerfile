@@ -3,12 +3,14 @@
 ##### Builder #####
 FROM node:22-alpine AS builder
 WORKDIR /src
-RUN apk update && apk upgrade && apk add --no-cache git openssh build-base python3 make autoconf automake zlib-dev libpng-dev vips-dev
-RUN mkdir -p /root/.ssh && chmod 700 /root/.ssh && ssh-keyscan -H github.com >> /root/.ssh/known_hosts
+# ยังคงต้องใช้ git แต่ไม่จำเป็นต้องใช้ openssh สำหรับการ clone แล้ว
+RUN apk update && apk upgrade && apk add --no-cache git build-base python3 make autoconf automake zlib-dev libpng-dev vips-dev
 
-ARG REPO=git@github.com:bomboonsan/kasetsart-strapi.git
+# เปลี่ยนไปใช้ HTTPS URL สำหรับ Public Repository
+ARG REPO=https://github.com/bomboonsan/kasetsart-strapi.git
 ARG BRANCH=main
-RUN --mount=type=ssh,id=default git clone --depth 1 -b "$BRANCH" "$REPO" app
+# ใช้คำสั่ง git clone แบบปกติ
+RUN git clone --depth 1 -b "$BRANCH" "$REPO" app
 WORKDIR /src/app
 
 ENV NODE_ENV=production

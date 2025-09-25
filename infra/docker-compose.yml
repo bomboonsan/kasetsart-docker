@@ -27,6 +27,7 @@ services:
       DATABASE_PASSWORD: ${MYSQL_PASSWORD}
     networks: [appnet]
     volumes:
+      # แก้ไขจาก strapi2_uploads เป็น strapi_uploads ให้ตรงกัน
       - strapi_uploads:/app/public/uploads
 
   next:

@@ -3,17 +3,13 @@
 ########## Builder: clone + build ##########
 FROM node:22-alpine AS builder
 WORKDIR /src
-RUN apk update && apk upgrade && apk add --no-cache git openssh
+# ไม่จำเป็นต้องใช้ openssh แล้ว
+RUN apk update && apk upgrade && apk add --no-cache git
 
-# เตรียม known_hosts เพื่อไม่ต้องตอบ yes ตอนเชื่อมต่อ
-RUN mkdir -p /root/.ssh && chmod 700 /root/.ssh && \
-    ssh-keyscan -H github.com >> /root/.ssh/known_hosts
-
-# ชี้ไปที่ private repo ของคุณ (ใช้ SSH URL เท่านั้น)
-ARG REPO=git@github.com:bomboonsan/kasetsart-nextjs.git
-
-# ใช้ BuildKit SSH forwarding: --ssh=default
-RUN --mount=type=ssh,id=default git clone --depth 1 "$REPO" app
+# เปลี่ยนไปใช้ HTTPS URL สำหรับ Public Repository
+ARG REPO=https://github.com/bomboonsan/kasetsart-nextjs.git
+# ใช้คำสั่ง git clone แบบปกติ
+RUN git clone --depth 1 "$REPO" app
 WORKDIR /src/app
 
 ENV NEXT_TELEMETRY_DISABLED=1
