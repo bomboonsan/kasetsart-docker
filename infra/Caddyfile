@@ -1,17 +1,16 @@
 fahsai.bus.ku.ac.th {
   encode zstd gzip
 
-  handle_path /phpmyadmin* {
-    reverse_proxy phpmyadmin:80
-  }
+  handle_path /phpmyadmin* { reverse_proxy phpmyadmin:80 }
+  @pma_assets { path /js* /themes* /favicon.ico /robots.txt
+                header Referer *fahsai.bus.ku.ac.th/phpmyadmin* }
+  handle @pma_assets { reverse_proxy phpmyadmin:80 }
 
-  handle_path /strapi* {
-    reverse_proxy strapi:1337
-  }
+  # Strapi ทั้ง API/Admin ใต้ /strapi
+  handle_path /strapi* { reverse_proxy strapi:1337 }
 
-  handle {
-    reverse_proxy nextjs:3000
-  }
+  # Next.js ที่เหลือทั้งหมด (รวม /admin ของ Next.js)
+  handle { reverse_proxy nextjs:3000 }
 
   header {
     Strict-Transport-Security "max-age=31536000"

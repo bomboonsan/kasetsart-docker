@@ -1,7 +1,6 @@
-# Next.js build → standalone
 FROM node:20-alpine AS base
 
-# ----- deps -----
+# deps
 FROM base AS deps
 RUN apk add --no-cache libc6-compat git
 RUN npm i -g pnpm
@@ -9,7 +8,7 @@ WORKDIR /app
 RUN git clone https://github.com/bomboonsan/kasetsart-nextjs.git .
 RUN pnpm install --frozen-lockfile
 
-# ----- build -----
+# build
 FROM base AS builder
 ARG NEXT_PUBLIC_API_BASE_URL
 ARG NEXT_PUBLIC_API_URL
@@ -25,7 +24,7 @@ COPY --from=deps /app .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm run build
 
-# ----- run -----
+# run
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production

@@ -31,6 +31,9 @@ services:
     build:
       context: ./strapi
       dockerfile: Dockerfile
+      args:
+        PUBLIC_URL: ${PUBLIC_URL}   # important for admin build under /strapi
+        NODE_ENV: ${NODE_ENV}
     environment:
       NODE_ENV: ${NODE_ENV}
       HOST: ${HOST}
@@ -48,6 +51,7 @@ services:
       TRANSFER_TOKEN_SALT: ${TRANSFER_TOKEN_SALT}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       JWT_SECRET: ${JWT_SECRET}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
     depends_on: [mysql]
     volumes:
       - strapi_uploads:/opt/app/public/uploads
@@ -65,13 +69,11 @@ services:
       context: ./nextjs
       dockerfile: Dockerfile
       args:
-        # ส่งค่า NEXT_PUBLIC_* เข้า build-time ด้วย
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_STRAPI_GRAPHQL_API_URL: ${NEXT_PUBLIC_STRAPI_GRAPHQL_API_URL}
     environment:
       NODE_ENV: production
-      # runtime env (เผื่อโค้ดอ่านตอนรัน)
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
       NEXT_PUBLIC_STRAPI_GRAPHQL_API_URL: ${NEXT_PUBLIC_STRAPI_GRAPHQL_API_URL}
@@ -79,6 +81,7 @@ services:
       STRAPI_GRAPHQL_API_URL: ${STRAPI_GRAPHQL_API_URL}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      STRAPI_ADMIN_TOKEN: ${STRAPI_ADMIN_TOKEN}
     depends_on:
       - strapi
     restart: unless-stopped
