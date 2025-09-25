@@ -3,7 +3,7 @@
 ##### Builder #####
 FROM node:22-alpine AS builder
 WORKDIR /src
-RUN apk add --no-cache git openssh build-base python3 make autoconf automake zlib-dev libpng-dev vips-dev
+RUN apk update && apk add --no-cache git openssh build-base python3 make autoconf automake zlib-dev libpng-dev vips-dev
 RUN mkdir -p /root/.ssh && chmod 700 /root/.ssh && ssh-keyscan -H github.com >> /root/.ssh/known_hosts
 
 ARG REPO=git@github.com:bomboonsan/kasetsart-strapi.git
@@ -36,7 +36,7 @@ ENV PORT=1338
 ENV HOST=0.0.0.0
 
 # sharp ใช้ vips ตอนรัน
-RUN apk add --no-cache vips-dev
+RUN apk update && apk add --no-cache vips-dev
 
 COPY --from=builder /src/app /opt/app
 RUN chown -R node:node /opt/app

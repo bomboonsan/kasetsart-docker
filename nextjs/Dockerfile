@@ -3,7 +3,7 @@
 ########## Builder: clone + build ##########
 FROM node:22-alpine AS builder
 WORKDIR /src
-RUN apk add --no-cache git openssh
+RUN apk update && apk add --no-cache git openssh
 
 # เตรียม known_hosts เพื่อไม่ต้องตอบ yes ตอนเชื่อมต่อ
 RUN mkdir -p /root/.ssh && chmod 700 /root/.ssh && \
