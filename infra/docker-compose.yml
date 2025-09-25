@@ -1,22 +1,26 @@
-name: kasetsart-stack
+version: "3.9"
 
 services:
   mysql:
-    image: mariadb:10
-    restart: unless-stopped
-    env_file: ./.env
-    command: ["mysqld","--default-authentication-plugin=mysql_native_password","--character-set-server=utf8mb4","--collation-server=utf8mb4_unicode_ci"]
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
-    networks: [appnet]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   strapi:
     build:
-      context: ../strapi
+      context: ./strapi
       dockerfile: Dockerfile
-    restart: unless-stopped
-    depends_on: [mysql]
-    env_file: ./.env
     environment:
       NODE_ENV: production
       DATABASE_CLIENT: mysql
@@ -25,37 +29,46 @@ services:
       DATABASE_NAME: ${MYSQL_DATABASE}
       DATABASE_USERNAME: ${MYSQL_USER}
       DATABASE_PASSWORD: ${MYSQL_PASSWORD}
-    networks: [appnet]
+      DATABASE_SSL: ${DATABASE_SSL}
+      APP_KEYS: ${APP_KEYS}
+      API_TOKEN_SALT: ${API_TOKEN_SALT}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+      TRANSFER_TOKEN_SALT: ${TRANSFER_TOKEN_SALT}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      URL_STRAPI_PUBLIC: ${URL_STRAPI_PUBLIC}
+      URL_PATH_PREFIX: ${URL_PATH_PREFIX}
+    depends_on:
+      mysql:
+        condition: service_healthy
     volumes:
-      # แก้ไขจาก strapi2_uploads เป็น strapi_uploads ให้ตรงกัน
-      - strapi_uploads:/app/public/uploads
-
-  next:
-    build:
-      context: ../nextjs
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    env_file: ./.env
-    environment:
-      NODE_ENV: production
-      API_URL: ${STRAPI_INTERNAL_URL}
-      AUTH_TRUST_HOST: "true"
-    depends_on: [strapi]
-    networks: [appnet]
+      - strapi_uploads:/opt/app/public/uploads
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:1338/_health"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
 
   phpmyadmin:
-    image: phpmyadmin:5-apache
-    restart: unless-stopped
-    env_file: ./.env
+    image: phpmyadmin:5.2
     environment:
       PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_ABSOLUTE_URI: ${PMA_ABSOLUTE_URI}
       UPLOAD_LIMIT: 256M
-    depends_on: [mysql]
-    networks: [appnet]
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # ถ้ามี Next.js ให้เปลี่ยน image/build ตามโปรเจกต์ของคุณ
+  # ถ้าไม่มี จะตอบ 404 จาก Caddy ที่ root
+  next:
+    image: nginx:alpine
+    volumes:
+      - ./_placeholder:/usr/share/nginx/html:ro
 
   caddy:
-    image: caddy:2
-    restart: unless-stopped
+    image: caddy:2.8
     ports:
       - "80:80"
       - "443:443"
@@ -63,14 +76,13 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-    depends_on: [next, strapi, phpmyadmin]
-    networks: [appnet]
-
-networks:
-  appnet:
+    depends_on:
+      - strapi
+      - phpmyadmin
+      - next
 
 volumes:
   mysql_data:
+  strapi_uploads:
   caddy_data:
   caddy_config:
-  strapi_uploads:

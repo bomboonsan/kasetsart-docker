@@ -1,23 +1,43 @@
+{
+  servers {
+    metrics
+  }
+}
+
 fahsai.bus.ku.ac.th {
   encode zstd gzip
 
-  @strapi path /strapi* handle @strapi {
+  # --- Strapi ---
+  @strapiRoot path /strapi
+  redir @strapiRoot /strapi/admin 308
+
+  @strapi path /strapi*
+  handle @strapi {
     header {
       X-Forwarded-Proto {scheme}
       X-Forwarded-Host  {host}
       X-Forwarded-Prefix /strapi
     }
-    # --- ส่วนที่แก้ไข ---
-    # ลบ handle_path ออก แล้วใช้ reverse_proxy โดยตรง
-    reverse_proxy http://strapi:1338
+    handle_path /strapi* {
+      uri strip_prefix /strapi
+      reverse_proxy http://strapi:1338
+    }
   }
 
+  # --- phpMyAdmin ---
   handle_path /phpmyadmin* {
     reverse_proxy http://phpmyadmin:80
   }
 
-  # ที่เหลือให้ไป Next.js
+  # กันพลาด asset ของ phpMyAdmin ที่อ้างรูท
+  @pmaAssets path_regexp pma ^/(js|themes|css|fonts|favicon\.ico|robots\.txt|vendor)/.*
+  handle @pmaAssets {
+    rewrite * /phpmyadmin{uri}
+    reverse_proxy http://phpmyadmin:80
+  }
+
+  # --- Root (Next.js หรือ placeholder) ---
   handle {
-    reverse_proxy http://next:3000
+    reverse_proxy http://next:80
   }
 }
