@@ -1,17 +1,14 @@
 fahsai.bus.ku.ac.th {
   encode zstd gzip
 
-  # phpMyAdmin ที่ /phpmyadmin
   handle_path /phpmyadmin* {
     reverse_proxy phpmyadmin:80
   }
 
-  # Strapi API + Admin ที่ /strapi
   handle_path /strapi* {
     reverse_proxy strapi:1337
   }
 
-  # Next.js เป็นค่าเริ่มต้น
   handle {
     reverse_proxy nextjs:3000
   }
