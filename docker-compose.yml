@@ -9,15 +9,19 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    ports:
-      - "3306:3306"
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./mysql-init:/docker-entrypoint-initdb.d
     restart: unless-stopped
-    networks:
-      - kasetsart-network
-    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    networks: [kasetsart-network]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   phpmyadmin:
     image: phpmyadmin:latest
@@ -28,72 +32,81 @@ services:
       PMA_USER: ${MYSQL_USER}
       PMA_PASSWORD: ${MYSQL_PASSWORD}
       PMA_ABSOLUTE_URI: ${PMA_ABSOLUTE_URI}
-    ports:
-      - "8080:80"
     depends_on:
       - mysql
     restart: unless-stopped
-    networks:
-      - kasetsart-network
+    networks: [kasetsart-network]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
 
   strapi:
     build:
-      context: ../strapi
+      context: ./strapi
       dockerfile: Dockerfile
       target: production
     container_name: kasetsart_strapi
     environment:
-      DATABASE_CLIENT: mysql
-      DATABASE_HOST: mysql
-      DATABASE_PORT: 3306
-      DATABASE_NAME: ${MYSQL_DATABASE}
-      DATABASE_USERNAME: ${MYSQL_USER}
-      DATABASE_PASSWORD: ${MYSQL_PASSWORD}
-      HOST: 0.0.0.0
-      PORT: 1337
-      JWT_SECRET: ${JWT_SECRET}
-      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+      NODE_ENV: production
+      HOST: ${HOST}
+      PORT: ${PORT}
+      # Public URL เพื่อให้ admin และ asset ออกลิงก์ใต้ /strapi
+      PUBLIC_URL: ${PUBLIC_URL}
+      # DB
+      DATABASE_CLIENT: ${DATABASE_CLIENT}
+      DATABASE_HOST: ${DATABASE_HOST}
+      DATABASE_PORT: ${DATABASE_PORT}
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_USERNAME: ${DATABASE_USERNAME}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      # secrets
       APP_KEYS: ${APP_KEYS}
       API_TOKEN_SALT: ${API_TOKEN_SALT}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
       TRANSFER_TOKEN_SALT: ${TRANSFER_TOKEN_SALT}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-      NODE_ENV: production
-      PUBLIC_URL: ${PUBLIC_BASE_URL}/strapi
-    ports:
-      - "1337:1337"
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [kasetsart-network]
     volumes:
       - strapi_uploads:/app/public/uploads
       - strapi_data:/app/.tmp
-    depends_on:
-      - mysql
-    restart: unless-stopped
-    networks:
-      - kasetsart-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:1337/_health"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 10
 
   nextjs:
     build:
-      context: ../nextjs
+      context: ./nextjs
       dockerfile: Dockerfile
     container_name: kasetsart_nextjs
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-      STRAPI_INTERNAL_URL: ${STRAPI_INTERNAL_URL}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      NEXTAUTH_URL: ${NEXTAUTH_URL}
-      API_BASE: ${API_BASE}
       NODE_ENV: production
-    ports:
-      - "3000:3000"
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_STRAPI_GRAPHQL_API_URL: ${NEXT_PUBLIC_STRAPI_GRAPHQL_API_URL}
+      STRAPI_GRAPHQL_API_URL: ${STRAPI_GRAPHQL_API_URL}
+      STRAPI_INTERNAL_URL: ${STRAPI_INTERNAL_URL}
+      API_BASE: ${API_BASE}
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
     depends_on:
-      - strapi
+      strapi:
+        condition: service_healthy
     restart: unless-stopped
-    networks:
-      - kasetsart-network
+    networks: [kasetsart-network]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
 
   caddy:
     image: caddy:alpine
@@ -102,7 +115,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
@@ -110,8 +123,7 @@ services:
       - strapi
       - phpmyadmin
     restart: unless-stopped
-    networks:
-      - kasetsart-network
+    networks: [kasetsart-network]
 
 networks:
   kasetsart-network:
@@ -119,12 +131,7 @@ networks:
 
 volumes:
   mysql_data:
-    driver: local
   strapi_uploads:
-    driver: local
   strapi_data:
-    driver: local
   caddy_data:
-    driver: local
   caddy_config:
-    driver: local

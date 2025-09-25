@@ -1,73 +1,47 @@
-# Strapi Dockerfile
-# Repo https://github.com/bomboonsan/kasetsart-strapi.git
-
+# Strapi v5 - build from repo
 FROM node:20-alpine AS base
 
-# Install dependencies only when needed
+# deps stage
 FROM base AS deps
 RUN apk add --no-cache libc6-compat git
-
 WORKDIR /app
-
-# Clone the repository
 RUN git clone https://github.com/bomboonsan/kasetsart-strapi.git .
-
-# Install dependencies
+# ติดตั้งเฉพาะ prod deps (repo ควรล็อก lockfile)
 RUN npm ci --only=production && npm cache clean --force
 
-# Development stage
-FROM base AS development
-RUN apk add --no-cache libc6-compat git
-
-WORKDIR /app
-
-# Clone the repository
-RUN git clone https://github.com/bomboonsan/kasetsart-strapi.git .
-
-# Install all dependencies including devDependencies
-RUN npm ci
-
-# Copy all files
-# Build stage
+# build stage
 FROM base AS build
+RUN apk add --no-cache libc6-compat git
 WORKDIR /app
-
-# Copy dependencies
+# ใช้ node_modules จาก deps
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app .
-
-# Build the application
+# Build Strapi
 RUN npm run build
 
-# Production stage
+# production runtime
 FROM base AS production
 RUN apk add --no-cache libc6-compat
-
 WORKDIR /app
 
-# Create strapi user
-RUN addgroup -g 1001 -S strapi
-RUN adduser -S strapi -u 1001
+# สร้าง user ไม่ใช่ root
+RUN addgroup -g 1001 -S strapi && adduser -S strapi -u 1001
 
-# Copy production dependencies
+# คัดลอกไฟล์ที่ต้องใช้รันจริง
+COPY --from=deps /app/package.json ./package.json
 COPY --from=deps /app/node_modules ./node_modules
-# Copy built application
 COPY --from=build --chown=strapi:strapi /app/dist ./dist
 COPY --from=build --chown=strapi:strapi /app/.strapi ./.strapi
 COPY --from=build --chown=strapi:strapi /app/public ./public
-COPY --from=build --chown=strapi:strapi /app/package.json ./package.json
-COPY --from=build --chown=strapi:strapi /app/database ./database
 COPY --from=build --chown=strapi:strapi /app/config ./config
 COPY --from=build --chown=strapi:strapi /app/src ./src
 COPY --from=build --chown=strapi:strapi /app/types ./types
 
-# Create uploads directory
+# อัปโหลดเก็บใน volume
 RUN mkdir -p public/uploads && chown -R strapi:strapi public/uploads
 
 USER strapi
-
-EXPOSE 1337
-
 ENV NODE_ENV=production
+EXPOSE 1337
 
 CMD ["npm", "start"]
