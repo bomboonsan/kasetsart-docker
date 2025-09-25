@@ -53,12 +53,13 @@ RUN adduser -S strapi -u 1001
 COPY --from=deps /app/node_modules ./node_modules
 # Copy built application
 COPY --from=build --chown=strapi:strapi /app/dist ./dist
-COPY --from=build --chown=strapi:strapi /app/build ./build
+COPY --from=build --chown=strapi:strapi /app/.strapi ./.strapi
 COPY --from=build --chown=strapi:strapi /app/public ./public
 COPY --from=build --chown=strapi:strapi /app/package.json ./package.json
 COPY --from=build --chown=strapi:strapi /app/database ./database
 COPY --from=build --chown=strapi:strapi /app/config ./config
 COPY --from=build --chown=strapi:strapi /app/src ./src
+COPY --from=build --chown=strapi:strapi /app/types ./types
 
 # Create uploads directory
 RUN mkdir -p public/uploads && chown -R strapi:strapi public/uploads
